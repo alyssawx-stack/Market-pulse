@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Market Pulse Tracker</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #121212; color: white; padding-bottom: 50px; }
+        .table-dark { border-color: #333; margin-bottom: 2rem; font-size: 0.9rem; }
+        .section-title { color: #00d4ff; border-left: 5px solid #00d4ff; padding-left: 15px; margin-top: 40px; margin-bottom: 20px; }
+        .special-row { background-color: rgba(0, 212, 255, 0.1) !important; }
+        .name-col { color: #aaa; }
+        .range-col { font-size: 0.8rem; color: #888; min-width: 120px; }
+    </style>
+</head>
+<body>
+    <div class="container-fluid px-4 mt-5">
+        <div class="d-flex justify-content-between align-items-center mb-5">
+            <h1 class="mb-0">Market Performance Dashboard</h1>
+            <button class="btn btn-outline-info" onclick="window.location.reload();">🔄 Refresh Data</button>
+        </div>
+        
+        {% set sections = [
+            ('US Market Performance', us_data),
+            ('Global Macro Performance', macro_data),
+            ('Thematic Sectors', sector_data)
+        ] %}
+
+        {% for title, data in sections %}
+        <h3 class="section-title">{{ title }}</h3>
+        <div class="card bg-dark text-white border-secondary mb-4">
+            <div class="card-body p-0">
+                <table class="table table-dark table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Description</th>
+                            <th>Ticker</th>
+                            <th>Last Price</th>
+                            <th>Daily %</th>
+                            <th>5-Day %</th>
+                            <th>YTD %</th>
+                            <th>52W Range (L-H)</th>
+                            <th>MA 20</th>
+                            <th>MA 50</th>
+                            <th>MA 200</th>
+                            <th>RSI</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in data %}
+                        <tr class="{{ 'special-row' if item.ticker in ['MAGS', 'RSP'] }}">
+                            <td class="name-col">{{ item.name }}</td>
+                            <td><strong>{{ item.ticker }}</strong></td>
+                            <td>${{ item.price }}</td>
+                            <td class="{{ 'text-success' if item.daily_change > 0 else 'text-danger' }}">{{ item.daily_change }}%</td>
+                            <td class="{{ 'text-success' if item.five_day_change > 0 else 'text-danger' }}">{{ item.five_day_change }}%</td>
+                            <td class="{{ 'text-success' if item.ytd_change > 0 else 'text-danger' }}">{{ item.ytd_change }}%</td>
+                            <td class="range-col">{{ item.range_52 }}</td>
+                            <td>{{ item.ma20 }}</td><td>{{ item.ma50 }}</td><td>{{ item.ma200 }}</td><td>{{ item.rsi }}</td>
+                            <td><span class="badge {{ 'bg-danger' if item.status == 'Overbought' else 'bg-success' if item.status == 'Oversold' else 'bg-secondary' }}">{{ item.status }}</span></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</body>
+</html>
