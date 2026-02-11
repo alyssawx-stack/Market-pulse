@@ -60,4 +60,52 @@ def get_stats(tickers):
             # YTD % Change
             current_year = datetime.now().year
             year_start_data = df[df.index >= f"{current_year}-01-01"]
-            first_price_of_year = year_start_data['Close
+            first_price_of_year = year_start_data['Close'].iloc[0] if not year_start_data.empty else df['Close'].iloc[0]
+            ytd_change = ((price - first_price_of_year) / first_price_of_year) * 100
+            
+            # 52-Week High/Low (from the 1y data)
+            high_52 = df['High'].max()
+            low_52 = df['Low'].min()
+            
+            rsi_val = float(latest['RSI'])
+            status = "Neutral"
+            if rsi_val > 70: status = "Overbought"
+            elif rsi_val < 30: status = "Oversold"
+
+            results.append({
+                "ticker": ticker,
+                "name": TICKER_NAMES.get(ticker, ticker),
+                "price": round(price, 2),
+                "daily_change": round(daily_change, 2),
+                "five_day_change": round(five_day_change, 2),
+                "ytd_change": round(ytd_change, 2),
+                "range_52": f"{round(low_52, 2)} - {round(high_52, 2)}",
+                "rsi": round(rsi_val, 1),
+                "status": status,
+                "ma20": "Y" if price > float(latest['MA20']) else "N",
+                "ma50": "Y" if price > float(latest['MA50']) else "N",
+                "ma200": "Y" if price > float(latest['MA200']) else "N"
+            })
+            # Small delay to prevent memory spikes on the server
+            time.sleep(0.5) 
+        except Exception as e:
+            print(f"Error fetching {ticker}: {e}")
+            continue
+    return results
+
+@app.route('/')
+def index():
+    us_tickers = ["VOO", "QQQ", "IWM", "DIA"]
+    macro_tickers = ["EWJ", "EWY", "EWG", "INDA", "MCHI", "EWU", "EWZ", "EWW", "EWQ", "FXI", "EWH"]
+    sector_tickers = [
+        "SMH", "MAGS", "RSP", "CIBR", "AIQ", "BOTZ", "LIT", "XOP", "GLD", "KRE", "ARKK",
+        "ITA", "XLE", "IYZ", "XLP", "XLY", "IGV", "UFO"
+    ]
+    
+    return render_template('index.html', 
+                           us_data=get_stats(us_tickers), 
+                           macro_data=get_stats(macro_tickers),
+                           sector_data=get_stats(sector_tickers))
+
+if __name__ == '__main__':
+    app.run(debug=True)
