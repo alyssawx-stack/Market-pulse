@@ -3,21 +3,16 @@ import yfinance as yf
 import pandas_ta as ta
 import pandas as pd
 from datetime import datetime
-import time  # Necessary for the small delay between fetches
+import time
 
 app = Flask(__name__)
 
-# Mapping tickers to descriptive names
+# Full mapping for all your tickers (kept for when you want to add them back)
 TICKER_NAMES = {
-    # US Market
     "VOO": "S&P 500 ETF", "QQQ": "Nasdaq 100", "IWM": "Russell 2000", "DIA": "Dow Jones Industrials",
-    
-    # Global Macro
     "EWJ": "MSCI Japan", "EWY": "MSCI South Korea", "EWG": "MSCI Germany", "INDA": "MSCI India",
     "MCHI": "MSCI China", "EWU": "MSCI United Kingdom", "EWZ": "MSCI Brazil", "EWW": "MSCI Mexico",
     "EWQ": "MSCI France", "FXI": "China Large-Cap", "EWH": "MSCI Hong Kong",
-    
-    # Thematic & Industry Sectors
     "SMH": "Semiconductors", "MAGS": "Magnificent 7", "RSP": "S&P 500 Equal Weight",
     "CIBR": "Cybersecurity", "AIQ": "Artificial Intelligence", "BOTZ": "Robotics & AI",
     "LIT": "Lithium & Battery Tech", "XOP": "Oil & Gas Exploration", "GLD": "Gold Shares",
@@ -31,10 +26,10 @@ def get_stats(tickers):
     results = []
     for ticker in tickers:
         try:
-            # Using 1y instead of 2y to stay within Render's memory limits
+            # 1y period is optimal for Render's free memory limit
             df = yf.download(ticker, period="1y", interval="1d", progress=False, auto_adjust=True)
             
-            if df.empty:
+            if df.empty or len(df) < 200:
                 continue
             
             if isinstance(df.columns, pd.MultiIndex):
@@ -63,11 +58,10 @@ def get_stats(tickers):
             first_price_of_year = year_start_data['Close'].iloc[0] if not year_start_data.empty else df['Close'].iloc[0]
             ytd_change = ((price - first_price_of_year) / first_price_of_year) * 100
             
-            # 52-Week High/Low (from the 1y data)
             high_52 = df['High'].max()
             low_52 = df['Low'].min()
             
-            rsi_val = float(latest['RSI'])
+            rsi_val = float(latest['RSI']) if not pd.isna(latest['RSI']) else 50
             status = "Neutral"
             if rsi_val > 70: status = "Overbought"
             elif rsi_val < 30: status = "Oversold"
@@ -86,8 +80,7 @@ def get_stats(tickers):
                 "ma50": "Y" if price > float(latest['MA50']) else "N",
                 "ma200": "Y" if price > float(latest['MA200']) else "N"
             })
-            # Small delay to prevent memory spikes on the server
-            time.sleep(0.5) 
+            time.sleep(0.5) # Prevents hitting the API too hard/fast
         except Exception as e:
             print(f"Error fetching {ticker}: {e}")
             continue
@@ -95,12 +88,11 @@ def get_stats(tickers):
 
 @app.route('/')
 def index():
+    # STARTING SMALL: We only load 8 total tickers to ensure the 512MB RAM isn't exceeded.
+    # Once this works and is stable, you can add your thematic sectors back here!
     us_tickers = ["VOO", "QQQ", "IWM", "DIA"]
-    macro_tickers = ["EWJ", "EWY", "EWG", "INDA", "MCHI", "EWU", "EWZ", "EWW", "EWQ", "FXI", "EWH"]
-    sector_tickers = [
-        "SMH", "MAGS", "RSP", "CIBR", "AIQ", "BOTZ", "LIT", "XOP", "GLD", "KRE", "ARKK",
-        "ITA", "XLE", "IYZ", "XLP", "XLY", "IGV", "UFO"
-    ]
+    macro_tickers = ["EWJ", "EWY", "EWG", "MCHI"]
+    sector_tickers = [] 
     
     return render_template('index.html', 
                            us_data=get_stats(us_tickers), 
